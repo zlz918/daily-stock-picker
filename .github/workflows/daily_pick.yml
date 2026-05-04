@@ -2,9 +2,11 @@ name: Daily Stock Picker
 
 on:
   schedule:
-    # 北京时间 17:00 运行 (17 - 8 = 09 UTC)
     - cron: '0 9 * * *'
-  workflow_dispatch: # 支持手动触发
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -12,13 +14,13 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4  # 已升级
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5 # 已升级
       with:
         python-version: '3.10'
-        cache: 'pip' # 自动处理依赖缓存，加速运行
+        cache: 'pip'
 
     - name: Install Dependencies
       run: |
@@ -26,10 +28,7 @@ jobs:
 
     - name: Run Stock Picker
       env:
-        # 必须在仓库 Settings -> Secrets 中设置此变量
         TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
-        # 如果有微信推送的 Key，也可以存在这里
-        # PUSH_KEY: ${{ secrets.PUSH_KEY }}
       run: python stock_picker.py
 
     - name: Commit Results
