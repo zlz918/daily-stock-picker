@@ -1,46 +1,41 @@
-name: 每日选股
+name: Daily Stock Picker
 
 on:
   schedule:
-    - cron: '30 7 * * 1-5'   # 北京时间 15:30 触发
-  workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # 解决 Node.js 20 警告
+    # 北京时间 17:00 运行 (17 - 8 = 09 UTC)
+    - cron: '0 9 * * *'
+  workflow_dispatch: # 支持手动触发
 
 jobs:
-  run-picker:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
 
     steps:
-      - uses: actions/checkout@v5             # ← 升级到 v5，解决 Node.js 警告
+    - name: Checkout Code
+      uses: actions/checkout@v3
 
-      - name: 设置 Python 环境
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip' # 自动处理依赖缓存，加速运行
 
-      - name: 安装依赖
-        run: |
-          pip install --upgrade pip
-          pip install akshare yfinance pandas numpy
+    - name: Install Dependencies
+      run: |
+        pip install pandas numpy tushare yfinance lxml
 
-      - name: 检查依赖版本（调试用）
-        run: |
-          python -c "import akshare as ak; print('akshare:', ak.__version__)"
-          python -c "import yfinance as yf; print('yfinance:', yf.__version__)"
-          python -c "import pandas as pd;   print('pandas:',  pd.__version__)"
+    - name: Run Stock Picker
+      env:
+        # 必须在仓库 Settings -> Secrets 中设置此变量
+        TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+        # 如果有微信推送的 Key，也可以存在这里
+        # PUSH_KEY: ${{ secrets.PUSH_KEY }}
+      run: python stock_picker.py
 
-      - name: 运行选股 + 微信推送
-        env:
-          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
-        run: python stock_picker.py
-
-      - name: 提交结果
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add picks_*.csv detail_*.csv || true
-          git diff --staged --quiet || git commit -m "📈 $(date '+%Y-%m-%d') 选股结果"
-          git push
+    - name: Commit Results
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add *.csv
+        git commit -m "Auto Update: $(date +'%Y-%m-%d') Stock Picks" || exit 0
+        git push
