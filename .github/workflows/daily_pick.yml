@@ -1,0 +1,29 @@
+name: 每日选股
+
+on:
+  schedule:
+    - cron: '30 7 * * 1-5'   # 北京时间 15:30 触发（UTC 07:30）
+  workflow_dispatch:
+
+jobs:
+  run-picker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40       # ← 新增：最长允许运行40分钟，防止超时中断
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装依赖
+        run: pip install akshare yfinance pandas numpy
+
+      - name: 运行选股 + 微信推送
+        env:
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+        run: python stock_picker.py
+
+      - name: 提交结果
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add picks_*.csv detail_*.csv
+          git diff --staged --quiet || git commit -m "📈 $(date '+%Y-%m-%d') 选股结果"
+          git push
